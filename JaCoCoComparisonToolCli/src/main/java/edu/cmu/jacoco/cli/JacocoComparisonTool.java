@@ -15,11 +15,13 @@ import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.jacoco.core.analysis.IBundleCoverage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import edu.cmu.jacoco.CoverageDiff;
 
 public class JacocoComparisonTool {
-
+    private static final Logger LOG = LoggerFactory.getLogger(JacocoComparisonTool.class);
     private static CommandLine line;
 
     private JacocoComparisonTool() {
@@ -80,27 +82,27 @@ public class JacocoComparisonTool {
 	    line = parser.parse(options, args);
 
 	    if (!line.hasOption("sourceFileDir")) {
-		System.out.println("You need to specify the sources directory");
+		LOG.error("You need to specify the sources directory");
 		valid = false;
 	    }
 
 	    if (!line.hasOption("classFileDir")) {
-		System.out.println("You need to specify the classes directory");
+		LOG.error("You need to specify the classes directory");
 		valid = false;
 	    }
 
 	    if (!line.hasOption("report")) {
-		System.out.println("You need to specify the report directory");
+		LOG.error("You need to specify the report directory");
 		valid = false;
 	    }
 
 	    if (!line.hasOption("exec")) {
-		System.out.println("You need to specify the name of the exec files.");
+		LOG.error("You need to specify the name of the exec files.");
 		valid = false;
 	    }
 
 	} catch (ParseException exp) {
-	    System.out.println("Unexpected exception:" + exp.getMessage());
+	    LOG.error("Unexpected exception:" + exp.getMessage());
 	    valid = false;
 	}
 

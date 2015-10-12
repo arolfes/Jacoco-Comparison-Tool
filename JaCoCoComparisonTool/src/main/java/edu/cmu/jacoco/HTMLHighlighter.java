@@ -11,16 +11,20 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import org.jacoco.core.analysis.ICounter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HTMLHighlighter implements CodeHighlighter{
+
+    private final Logger log = LoggerFactory.getLogger(HTMLHighlighter.class);
 
 	private BufferedReader source;
 	private BufferedWriter target;
 	private String className;
-	
+
 	@Override
 	public void setClassName(String name) {
-		this.className = name;		
+		this.className = name;
 	}
 
 	public boolean setSource(File source) {
@@ -28,39 +32,39 @@ public class HTMLHighlighter implements CodeHighlighter{
 			try {
 				this.source = new BufferedReader(new FileReader(source.getAbsoluteFile()));
                                 return true;
-                                
+
 			} catch (FileNotFoundException e) {
-				e.printStackTrace();
+			    log.error("", e);
                                 return false;
 			}
 		}
 		else {
-			System.out.println("Source does not exists " + source.getPath());
+			log.warn("Source does not exists: {} " + source.getPath());
                         return false;
 		}
 	}
 
 	public void setTarget(File targetDirectory, String pkg, String className) {
 		try {
-			
+
 			File targetFile = new File(targetDirectory, pkg.replaceAll("/", "."));
-			
+
 			if (!targetFile.exists()) {
 
 				Files.createDirectories(Paths.get(targetFile.getPath()));
 			}
-				
+
 
 			className = className.replaceFirst(pkg, "");
 			targetFile = new File(targetFile, className);
 
-			
+
 			this.target = new BufferedWriter(new FileWriter(targetFile.getAbsoluteFile()));
 		} catch (IOException e) {
-			e.printStackTrace();
+		    log.error("", e);
 		}
 	}
-	
+
 
 	@Override
 	public void renderHeader() {
@@ -69,18 +73,18 @@ public class HTMLHighlighter implements CodeHighlighter{
 			target.write("<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>");
 			target.write("<html xmlns='http://www.w3.org/1999/xhtml' lang='en'>");
 
-			target.write("<head>");		
-			
+			target.write("<head>");
+
 			target.write("<meta http-equiv='Content-Type' content='text/html;charset=UTF-8'/>");
 			target.write(String.format("<title>%s</title>", className));
 			renderStyleSheets();
 			renderScripts();
-			
-			target.write("</head>");	
-			
+
+			target.write("</head>");
+
 		} catch (IOException e) {
-			e.printStackTrace();
-		}		
+		    log.error("", e);
+		}
 	}
 
 	private void renderStyleSheets() {
@@ -89,54 +93,53 @@ public class HTMLHighlighter implements CodeHighlighter{
 			target.write("<link rel='stylesheet' href='../.resources/prettify.css' type='text/css'/>");
 			target.write("<link rel='stylesheet' href='../.resources/custom.css' type='text/css'/>");
 		} catch (IOException e) {
-			e.printStackTrace();
+		    log.error("", e);
 		}
-		
+
 	}
-	
+
 	private void renderScripts() {
 		try {
 			target.write("<script type='text/javascript' src='../.resources/prettify.js'></script>");
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}   
+		    log.error("", e);
+		}
 	}
-	
+
 	@Override
 	public void renderCodePrefix() {
-		
-		try {			
+
+		try {
 			target.write("<body onload=\"window['PR_TAB_WIDTH']=4;prettyPrint()\">");
 			target.write(String.format("<h1>%s</h1>", className));
 			renderLegend();
-			
+
 			target.write("<pre class='source lang-java linenums'>");
-			
+
 		} catch (IOException e) {
-			e.printStackTrace();
+		    log.error("", e);
 		}
-		
+
 	}
 
 	@Override
 	public void renderFooter() {
-		
-		try {			
+
+		try {
 			target.write("</body>");
 			target.write("</html>");
-			
+
 			// render the legend
 			renderLegend();
-			
+
 			target.close();
 			source.close();
-			
+
 		} catch (IOException e) {
-			e.printStackTrace();
-		}		
+		    log.error("", e);
+		}
 	}
-	
+
 	private void renderLegend() {
 		try {
 			target.write("<table class='legend'>");
@@ -149,7 +152,7 @@ public class HTMLHighlighter implements CodeHighlighter{
 			target.write("<td class='upc'>Partially Covered by the union test suite</td></tr>");
 			target.write("</table>");
 		} catch (IOException e) {
-			e.printStackTrace();
+		    log.error("", e);
 		}
 	}
 
@@ -158,79 +161,78 @@ public class HTMLHighlighter implements CodeHighlighter{
 		try {
 			target.write("</pre>");
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		    log.error("", e);
 		}
 	}
 
 
 	@Override
 	public void renderLine(String title, int lineNo, int aBranchStatus, int bBranchStatus, int uBranchStatus, int aLineStatus, int bLineStatus, int uLineStatus) {
-		
-		String line, style; 
-		
+
+		String line, style;
+
 		try {
 			if ((line = source.readLine()) != null) {
 				style = getCoverageType(aBranchStatus, bBranchStatus, uBranchStatus);
-				
+
 				style = style.equals("empty") ? getCoverageType(aLineStatus, bLineStatus, uLineStatus) : style;
-				
+
 				if (style.equals("empty")) {
 					target.write(line);
 					target.write("\n");
 				}
 				else {
 					target.write(String.format("<span class='%s' id='L%d' title='%s'>", style, lineNo, title));
-					target.write(line);	
-					target.write("\n");	
+					target.write(line);
+					target.write("\n");
 					target.write("</span>");
 				}
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
-		}			
-		
+		    log.error("", e);
+		}
+
 	}
-	
+
 	private String getCoverageType(int aStatus, int bStatus, int uStatus) {
-		
+
 		if (uStatus == ICounter.NOT_COVERED) {
 			return "nc";
 		}
 		else if (uStatus == ICounter.EMPTY) {
 			return "empty";
-		}	
+		}
 		else if (aStatus == ICounter.NOT_COVERED) {
 			return bStatus == ICounter.FULLY_COVERED ? "bc" : "bpc";
 		}
 		else if (bStatus == ICounter.NOT_COVERED) {
-			return aStatus == ICounter.FULLY_COVERED ? "ac" : "apc";		
+			return aStatus == ICounter.FULLY_COVERED ? "ac" : "apc";
 		}
 		else {
 			if (uStatus == ICounter.FULLY_COVERED) {
 				if (aStatus == ICounter.PARTLY_COVERED && bStatus == ICounter.PARTLY_COVERED) {
 					return "uc abpc";
 				}
-				else 
+				else
 					return "uc";
 			}
-			else 
+			else
 				return "upc";
 		}
 	}
-	
+
 
 	public void renderTrailingLines() {
-		
-		String line; 
-		
+
+		String line;
+
 		try {
 			while((line = source.readLine()) != null) {
 				target.write(line );
 				target.write("\n");
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+		    log.error("", e);
 		}
 	}
 

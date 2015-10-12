@@ -31,12 +31,16 @@ import org.jacoco.core.data.ExecutionDataStore;
 import org.jacoco.core.data.ExecutionDataWriter;
 import org.jacoco.core.data.SessionInfoStore;
 import org.jacoco.core.tools.ExecFileLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import edu.cmu.jacoco.utils.CopyFileVisitor;
 import edu.cmu.jacoco.utils.JarCopyFileVisitor;
 import edu.cmu.jacoco.utils.PathReference;
 
 public class CoverageDiff {
+
+    private final Logger log = LoggerFactory.getLogger(CoverageDiff.class);
 
     private static FileSystem jarFileSystem = null;
 	private final String title;
@@ -101,13 +105,9 @@ public class CoverageDiff {
 		Files.walkFileTree(sourceDir, new CopyFileVisitor(sourceDir, targetDir));
 	    }
 	} catch (IOException e) {
-	    System.err.println(
-		    "can't copy html resources to reportDirectory. Code Highlight will not work \n" + e.getMessage());
-	    e.printStackTrace();
+	    log.error("can't copy html resources to reportDirectory. Code Highlight will not work.",e);
 	} catch (URISyntaxException e) {
-	    System.err.println(
-		    "can't copy html resources to reportDirectory. Code Highlight will not work \n" + e.getMessage());
-	    e.printStackTrace();
+	    log.error("can't copy html resources to reportDirectory. Code Highlight will not work.",e);
 	}
     }
 
@@ -177,7 +177,7 @@ public class CoverageDiff {
 
 		// Calculate the total branch coverage for each package and its classes
 		for (IBundleCoverage bc: bcl) {
-			System.out.println("calculate branch coverage " + bc.getName());
+		        log.info("calculate branch coverage {}", bc.getName());
 			for (IPackageCoverage p : bc.getPackages()) {
 				if (packageCoverage.get(p.getName()) != null) {
 					classCoverage = packageCoverage.get(p.getName());
@@ -250,7 +250,7 @@ public class CoverageDiff {
 
     public Path mergeExecDataFiles(final String[] execDataFiles) throws IOException {
 
-	System.out.println("merge exec files");
+        log.info("merge exec files");
 
 	ExecFileLoader execFileLoader = new ExecFileLoader();
 	for (String inputFile : execDataFiles) {
@@ -324,7 +324,7 @@ public class CoverageDiff {
     }
 
 	public IBundleCoverage loadAndAnalyze(final File execDataFile) throws IOException {
-		System.out.println("load and analyze: " + execDataFile.getPath());
+	    log.info("load and analyze: {}", execDataFile.getPath());
 		loadExecutionData(execDataFile);
 		return analyzeStructure();
 
