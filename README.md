@@ -6,9 +6,9 @@ between the test coverage of two different sets of test cases.
 ## Instructions
 To genrate the coverage report follow the bellow steps:
 - Run your test cases using Jacoco to generate the coverage report for each individual test suite. This will generate some intermediate results in a .exec file. Currently the project supports only two sets of test suites.
-- Create a folder as your source folder.
-- Create a "bin" directory under your source folder, and put your compiled source (jar or class files) inside that "bin" directory.
-- Put your exec files under the source folder.
+
+### Command Line Interface
+
 - Edit the configuration in the report.conf file inside the project root folder.
     - *sourceFileDir*: The absolute path to your sources folder.
     - *classFileDir*: The absolute path to your classes folder.
@@ -19,5 +19,7 @@ To genrate the coverage report follow the bellow steps:
     - *titles* [optional] : The comma separated title of test suites, to be used in the coverage report.
 - Run the report generation script by running ./report.sh or report.bat
 - The generated HTML reports, will be saved inside the reports directory
+
+### Maven Plugin
 
 [Jacoco]:http://www.eclemma.org/jacoco/

@@ -1,7 +1,11 @@
 package edu.cmu.jacoco.cli;
 
+import static edu.cmu.jacoco.utils.CoverageDiffUtils.getSplittedString;
+import static edu.cmu.jacoco.utils.CoverageDiffUtils.wrapTitles;
+
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.apache.commons.cli.BasicParser;
@@ -26,14 +30,16 @@ public class JacocoComparisonTool {
 	if (!extractArguments(args))
 	    return;
 
-	final String[] execDataFiles = getOptionValues("exec", ",");
-	final CoverageDiff s = new CoverageDiff(new File(getOptionValue("sourceFileDir")), new File(getOptionValue("classFileDir")), new File(getOptionValue("report")),
+	final String[] execDataFiles = getOptionValues("exec");
+	final File reportsDir = new File(getOptionValue("report"));
+	final CoverageDiff s = new CoverageDiff(new File(getOptionValue("sourceFileDir")), new File(getOptionValue("classFileDir")), reportsDir,
 		execDataFiles.length);
 
 	final List<IBundleCoverage> bcl = s.loadAndAnalyze(execDataFiles);
 
-	s.mergeExecDataFiles(execDataFiles);
-	final IBundleCoverage bundleCoverage = s.loadAndAnalyze(new File("./target/jacoco.exec"));
+        final Path destMergedFile = s.mergeExecDataFiles(execDataFiles);
+
+	final IBundleCoverage bundleCoverage = s.loadAndAnalyze(destMergedFile.toFile());
 
 	bcl.add(bundleCoverage);
 
@@ -41,8 +47,8 @@ public class JacocoComparisonTool {
 
 	s.initWriter();
 
-	final String[] testSuiteTitles = wrapTitles(getOptionValues("title", ","), execDataFiles.length);
-	s.renderBranchCoverage(testSuiteTitles, getOptionValues("package", ","));
+	final String[] testSuiteTitles = wrapTitles(getOptionValues("title"), execDataFiles.length);
+	s.renderBranchCoverage(testSuiteTitles, getOptionValues("package"));
 
 	s.generateClassCoverageReport(bcl);
     }
@@ -109,31 +115,12 @@ public class JacocoComparisonTool {
 	}
     }
 
-    private static String[] getOptionValues(final String option, final String separator) {
+    private static String[] getOptionValues(final String option) {
 	if (line.hasOption(option)) {
-	    return line.getOptionValue(option).split(separator);
+	    return getSplittedString(line.getOptionValue(option));
 	} else {
 	    return new String[0];
 	}
-    }
-
-    private static String[] wrapTitles(final String[] optionValues, final int numberOfExecFiles) {
-
-	int givenTitles = optionValues.length;
-
-	if (givenTitles == numberOfExecFiles)
-	    return optionValues;
-
-	final String[] wrapped = new String[numberOfExecFiles];
-
-	System.arraycopy(optionValues, 0, wrapped, 0, givenTitles);
-
-	for (int counter = givenTitles; counter < numberOfExecFiles; counter++) {
-	    wrapped[counter] = "Test Suite " + (counter + 1);
-	}
-
-	return wrapped;
-
     }
 
 }

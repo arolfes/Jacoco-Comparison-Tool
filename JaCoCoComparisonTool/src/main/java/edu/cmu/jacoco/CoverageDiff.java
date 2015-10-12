@@ -5,7 +5,10 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -13,11 +16,11 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.io.FileUtils;
 import org.jacoco.core.analysis.Analyzer;
 import org.jacoco.core.analysis.CoverageBuilder;
 import org.jacoco.core.analysis.IBundleCoverage;
@@ -29,12 +32,19 @@ import org.jacoco.core.data.ExecutionDataWriter;
 import org.jacoco.core.data.SessionInfoStore;
 import org.jacoco.core.tools.ExecFileLoader;
 
+import edu.cmu.jacoco.utils.CopyFileVisitor;
+import edu.cmu.jacoco.utils.JarCopyFileVisitor;
+import edu.cmu.jacoco.utils.PathReference;
+
 public class CoverageDiff {
 
+    private static FileSystem jarFileSystem = null;
 	private final String title;
 
 	private final File classesDirectory;
 	private final File reportDirectory;
+
+	private Path jacocoExecPath;
 
 	private ExecutionDataStore executionDataStore;
 	private SessionInfoStore sessionInfoStore;
@@ -69,17 +79,35 @@ public class CoverageDiff {
 	if (!reportDirectory.exists()) {
 	    Files.createDirectories(Paths.get(reportDirectory.getPath()));
 	}
+	this.jacocoExecPath = Files
+		.createDirectories(Paths.get(this.reportDirectory.getAbsolutePath() + "/jacoco-execs"));
+
 	try {
+	    final URI sourceDirURI = this.getClass().getClassLoader().getResource("htmlresources").toURI();
+	    final Path targetDir = Paths.get(this.reportDirectory.getAbsolutePath() + "/.resources");
+	    if (sourceDirURI.getScheme().equals("jar")) {
+		if (jarFileSystem == null) {
+		    final Map<String, ?> env = Collections.emptyMap();
+		    jarFileSystem = FileSystems.newFileSystem(sourceDirURI, env);
+		}
 
-	    FileUtils.copyDirectory(new File(this.getClass().getClassLoader().getResource("htmlresources").toURI()),
-		    new File(reportDirectory, ".resources"));
+		@SuppressWarnings("resource")
+		final PathReference pathReference = new PathReference(jarFileSystem.provider().getPath(sourceDirURI), jarFileSystem);
+		final Path jarPath = pathReference.getPath();
 
+		Files.walkFileTree(jarPath, new JarCopyFileVisitor(jarPath, targetDir));
+	    } else {
+		final Path sourceDir = Paths.get(sourceDirURI);
+		Files.walkFileTree(sourceDir, new CopyFileVisitor(sourceDir, targetDir));
+	    }
 	} catch (IOException e) {
 	    System.err.println(
 		    "can't copy html resources to reportDirectory. Code Highlight will not work \n" + e.getMessage());
+	    e.printStackTrace();
 	} catch (URISyntaxException e) {
 	    System.err.println(
 		    "can't copy html resources to reportDirectory. Code Highlight will not work \n" + e.getMessage());
+	    e.printStackTrace();
 	}
     }
 
@@ -220,36 +248,29 @@ public class CoverageDiff {
 	}
 
 
-	/*
-	 * Runs Maven to merge the input exec data files
-	 */
-	public void mergeExecDataFiles(final String[] execDataFiles) throws IOException {
+    public Path mergeExecDataFiles(final String[] execDataFiles) throws IOException {
 
-        System.out.println("merge exec files");
+	System.out.println("merge exec files");
 
-        ExecFileLoader execFileLoader = new ExecFileLoader();
-        for (String inputFile : execDataFiles)
-        {
-          try (InputStream is = Files.newInputStream(Paths.get(inputFile)))
-          {
-            execFileLoader.load(is);
-          } catch (IOException ex)
-          {
-            throw new RuntimeException("Error loading data from file: '" + inputFile.toString() + "'", ex);
-          }
-        }
-        Path destFile = Paths.get("target\\jacoco.exec");
-        try (OutputStream os = Files.newOutputStream(destFile))
-        {
-          ExecutionDataWriter executionDataWriter = new ExecutionDataWriter(os);
-          execFileLoader.getSessionInfoStore().accept(executionDataWriter);
-          execFileLoader.getExecutionDataStore().accept(executionDataWriter);
-          executionDataWriter.flush();
-        } catch (IOException ex)
-        {
-          throw new RuntimeException("Error writing data to file: '" + destFile.toString() + "'", ex);
-        }
+	ExecFileLoader execFileLoader = new ExecFileLoader();
+	for (String inputFile : execDataFiles) {
+	    try (InputStream is = Files.newInputStream(Paths.get(inputFile))) {
+		execFileLoader.load(is);
+	    } catch (IOException ex) {
+		throw new RuntimeException("Error loading data from file: '" + inputFile.toString() + "'", ex);
+	    }
 	}
+	final Path destMergedFile = Paths.get(this.jacocoExecPath.toAbsolutePath().toString() + "/jacoco-merged.exec");
+	try (OutputStream os = Files.newOutputStream(destMergedFile)) {
+	    ExecutionDataWriter executionDataWriter = new ExecutionDataWriter(os);
+	    execFileLoader.getSessionInfoStore().accept(executionDataWriter);
+	    execFileLoader.getExecutionDataStore().accept(executionDataWriter);
+	    executionDataWriter.flush();
+	} catch (IOException ex) {
+	    throw new RuntimeException("Error writing data to file: '" + destMergedFile.toString() + "'", ex);
+	}
+	return destMergedFile;
+    }
 
 	private IBundleCoverage analyzeStructure() throws IOException {
 		final CoverageBuilder coverageBuilder = new CoverageBuilder();
@@ -278,29 +299,29 @@ public class CoverageDiff {
 		fis.close();
 	}
 
-	public List<IBundleCoverage> loadAndAnalyze(String[] execDataFiles) throws IOException {
+    public List<IBundleCoverage> loadAndAnalyze(String[] execDataFiles) throws IOException {
 
-		List<IBundleCoverage> bcl = new ArrayList<>();
-		IBundleCoverage bundleCoverage;
-	    File source, dest;
+	List<IBundleCoverage> bcl = new ArrayList<>();
+	IBundleCoverage bundleCoverage;
+	Path source, dest;
 
-	    Files.createDirectories(Paths.get("./target/jacoco-execs"));
+	Files.createDirectories(Paths.get(this.reportDirectory.getAbsolutePath() + "/jacoco-execs"));
 
-	    for (int i = 0; i < execDataFiles.length; i++) {
+	for (int i = 0; i < execDataFiles.length; i++) {
 
-	    	//Copy the execution data files locally to prepare them for merge
-	    	source = new File(execDataFiles[i]);
-	    	dest = new File("./target/jacoco-execs/" + "part_" + i + ".exec");
-			Files.copy(source.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+	    // Copy the execution data files locally to prepare them for merge
+	    source = Paths.get(execDataFiles[i]);
+	    dest = Paths.get(this.jacocoExecPath.toAbsolutePath().toString() + "/part_" + i + ".exec");
+	    Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
 
-			//Load and analyze the execution data
-			bundleCoverage = loadAndAnalyze(source);
+	    // Load and analyze the execution data
+	    bundleCoverage = loadAndAnalyze(source.toFile());
 
-			bcl.add(bundleCoverage);
-		}
-
-	    return bcl;
+	    bcl.add(bundleCoverage);
 	}
+
+	return bcl;
+    }
 
 	public IBundleCoverage loadAndAnalyze(final File execDataFile) throws IOException {
 		System.out.println("load and analyze: " + execDataFile.getPath());
