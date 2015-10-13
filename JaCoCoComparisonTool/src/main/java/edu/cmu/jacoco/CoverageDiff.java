@@ -14,7 +14,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import edu.cmu.jacoco.utils.CopyFileVisitor;
 import edu.cmu.jacoco.utils.JarCopyFileVisitor;
 import edu.cmu.jacoco.utils.PathReference;
+import edu.cmu.jacoco.utils.WildcardMatcher;
 
 public class CoverageDiff {
 
@@ -120,23 +120,23 @@ public class CoverageDiff {
 	}
 
 
-	public void renderBranchCoverage(String[] testSuiteTitles, String[] packages) {
+    public void renderBranchCoverage(String[] testSuiteTitles, String[] packages) {
 
-		// Render the total coverage
-		String packageName;
-		boolean all = packages.length == 0;
-		writer.renderTotalCoverage(totalCoverage, testSuiteTitles);
-
-		for (Map.Entry<String, Map<String, ArrayList<Coverage>>> entry : packageCoverage.entrySet()) {
-		    // Render the package level coverage by passing the package name, and the list of its classes
-			packageName = entry.getKey().replaceAll("/", ".");
-
-			if (all || Arrays.asList(packages).contains(packageName))
-				renderPackageBranchCoverage(packageName, entry.getValue(), testSuiteTitles);
-		}
-
-		writer.renderReportEnd();
+	// Render the total coverage
+	String packageName;
+	boolean all = packages.length == 0;
+	writer.renderTotalCoverage(totalCoverage, testSuiteTitles);
+	WildcardMatcher wildcardMatcher = new WildcardMatcher(packages);
+	for (Map.Entry<String, Map<String, ArrayList<Coverage>>> entry : packageCoverage.entrySet()) {
+	    // Render the package level coverage by passing the package name,
+	    // and the list of its classes
+	    packageName = entry.getKey().replace('/', '.');
+	    if (all || wildcardMatcher.matches(packageName))
+		renderPackageBranchCoverage(packageName, entry.getValue(), testSuiteTitles);
 	}
+
+	writer.renderReportEnd();
+    }
 
 	@SuppressWarnings("serial")
 	private void renderPackageBranchCoverage(String packageName, Map<String, ArrayList<Coverage>> classes, String[] testSuiteTitles) {
