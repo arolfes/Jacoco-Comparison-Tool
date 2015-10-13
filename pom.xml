@@ -1,7 +1,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.github.jacoco</groupId>
-  <artifactId>JacocoComparisonToolParent</artifactId>
+  <artifactId>JaCoCoComparisonToolParent</artifactId>
   <version>2.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>JaCoCo Comparison Tools</name>
@@ -16,6 +16,7 @@
     <hamcrest.version>1.3</hamcrest.version>
     <slf4j.version>1.7.6</slf4j.version>
     <logback.version>1.0.13</logback.version>
+    <ant.version>1.7.0</ant.version>
   </properties>
 
   <dependencyManagement>
@@ -56,6 +57,11 @@
         <version>${logback.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.apache.ant</groupId>
+        <artifactId>ant</artifactId>
+        <version>${ant.version}</version>
+      </dependency>
+      <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
         <version>${junit.version}</version>
@@ -84,6 +90,7 @@
     <module>JaCoCoComparisonTool</module>
     <module>JaCoCoComparisonToolCli</module>
     <module>JaCoCoComparisonToolMaven</module>
+    <module>JaCoCoComparisonToolAnt</module>
   </modules>
 
 </project>
